@@ -1,8 +1,5 @@
-#require bitfields.fs
-#require f0-millis.fs
-
-8 constant rows
-8 constant cols
+3 constant rows
+3 constant cols
 rows cols * constant numkeys
 
 : init-gpio
@@ -23,18 +20,11 @@ rows cols * constant numkeys
     ." gpio initialized" cr
 ;
 
-numkeys cells buffer: keystate
-: init-keystate
-    numkeys 0 do
-        %0 keystate i cells + !
-    loop
-    ." keystate initialized" cr
-;
+0 variable keystate
 
 : init
     init-systick
     init-gpio
-    init-keystate
     ." ready." cr
 ;
 
@@ -51,11 +41,7 @@ numkeys cells buffer: keystate
 
 : keystate.
     cr
-    numkeys 0 do
-        hex i . ." | "
-        keystate i cells + @ word. cr
-    loop
-    decimal
+    keystate @ word.
 ;
 
 : column_on  ( col -- )
@@ -66,57 +52,48 @@ numkeys cells buffer: keystate
     gpioa pin.clear
 ;
 
-: readkey ( col row -- )
-    dup rot rows * + cells keystate + swap ( addr row )
-    cols + gpioa pin.read ( addr pinval )
-    over @ shl or swap !
+: readrow ( row -- flag )
+    cols + gpioa pin.read
 ;
 
 : scan_matrix ( -- )
+    %01 %00                 ( mask ks )
     cols 0 do
         i column_on
-        rows 0 do
-            j i readkey
+        rows 0 do           ( mask ks )
+            i readrow       ( mask ks pv )
+            rot tuck and    ( ks mask pv' )
+            swap shl        ( ks pv' mask' )
+            rot rot or      ( mask' ks' )
         loop
         i column_off
     loop
+    nip keystate !
 ;
-
-: readkey2 ( addr row -- )
-    cols + gpioa pin.read ( addr pinval )
-    over @ shl or swap !
-;
-
-: scan_matrix2 ( -- )
-    keystate
-    cols 0 do
-        i column_on
-        rows 0 do
-            dup i readkey2
-            cell+
-        loop
-        i column_off
-    loop
-;
-
-
 
 : testmatrix
     millis.reset
+     500000 dup
+     0 do
+        keystate @
+        scan_matrix
+        keystate @
+        <> if
+            keystate.
+        then
+    loop
 
-    1000 0 do scan_matrix loop
-
+    cr . ." iterations = "
     millis.read
-    gpioa_odr.
 ;
 
-: testmatrix2
-    millis.reset
-
-    32 0 do scan_matrix2 loop
-
-    millis.read
-    gpioa_odr.
+: scanloop
+    begin
+        keystate @
+        scan_matrix
+        keystate @
+        <> if
+            keystate.
+        then
+    key? until
 ;
-
-

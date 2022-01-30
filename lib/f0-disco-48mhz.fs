@@ -49,6 +49,6 @@ BEGIN RCC_CR_PLLRDY? UNTIL   \ Is PLL ready ?
 \ Update the Baud Rate Register so the serial comms is still 460800 Baud.
 \ ((pll_multiplier * clock)/Baud rate)/2 = ((6* 8000000)/460800)/2 = 52
 208 USART1_BRR !  \ for 115200 Baud change to 208 (52 is for 460800)
-;
 
-f0-disco-48mhz
+." System running at 48 MHZ using HSE oscillator." cr
+;
